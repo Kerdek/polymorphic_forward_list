@@ -26,11 +26,16 @@ private:
 	struct link
 	{
 		basic_node * next = nullptr;
+
+		link(basic_node * next) :
+			next{ next }
+		{ }
 	};
 
 	struct basic_node : link
 	{
-		basic_node(reference ref) :
+		basic_node(basic_node * next, reference ref) :
+			link{ next },
 			ref{ ref }
 		{ }
 
@@ -42,8 +47,8 @@ private:
 	struct node : basic_node
 	{
 		template<class ... Args>
-		node(Args && ... args) noexcept(noexcept(Elem_Derived{ std::forward<Args>(args) ... })) :
-			basic_node{ elem },
+		node(basic_node * next, Args && ... args) noexcept(noexcept(Elem_Derived{ std::forward<Args>(args) ... })) :
+			basic_node{ next, elem },
 			elem{ std::forward<Args>(args) ... }
 		{ }
 
@@ -102,21 +107,27 @@ private:
 		}
 
 	private:
+		link * p = nullptr;
+
 		iterator_t(link * p) noexcept :
 			p{ p }
 		{ }
 
-		link * p = nullptr;
+		operator link * () noexcept
+		{
+			return p;
+		}
 	};
 
 public:
 
-	polymorphic_forward_list() noexcept
+	polymorphic_forward_list() noexcept :
+		root{ nullptr }
 	{}
 
-	polymorphic_forward_list(polymorphic_forward_list &&) noexcept
+	polymorphic_forward_list(polymorphic_forward_list && other) noexcept :
+		root{ other.root.next }
 	{
-		root.next = other.root.next;
 		other.root.next = nullptr;
 	}
 	auto operator=(polymorphic_forward_list && other) noexcept -> polymorphic_forward_list &
@@ -129,7 +140,7 @@ public:
 		clear();
 	}
 
-	void assign(size_type count, const_reference value) // needs to be optimized
+	void assign(size_type count, const_reference value)
 	{
 		clear();
 		for (size_type i = 0; i < count; i++)
@@ -143,13 +154,7 @@ public:
 	{
 		using other_type = std::remove_const_t<std::remove_reference_t<decltype(*first)>>;
 		clear();
-		link * last_inserted = &root;
-		while (first != last)
-		{
-			last_inserted->next = std::make_unique<node<other_type>>(*first);
-			last_inserted = last_inserted->next.get();
-			++first;
-		}
+		insert_after(&root, first, last);
 	}
 
 	reference front() noexcept
@@ -167,7 +172,7 @@ public:
 	}
 	iterator begin() noexcept
 	{
-		return root.next.get();
+		return root.next;
 	}
 	iterator end() noexcept
 	{
@@ -180,7 +185,7 @@ public:
 	}
 	const_iterator begin() const noexcept
 	{
-		return root.next.get();
+		return root.next;
 	}
 	const_iterator end() const noexcept
 	{
@@ -193,7 +198,7 @@ public:
 	}
 	const_iterator cbegin() const noexcept
 	{
-		return root.next.get();
+		return root.next;
 	}
 	const_iterator cend() const noexcept
 	{
@@ -212,76 +217,68 @@ public:
 
 	void clear() noexcept
 	{
-		while (root.next)
-		{
-			std::unique_ptr<basic_node> trash = std::move(root.next);
-			std::swap(trash->next, root.next);
-		}
+		erase_after(&root, nullptr);
 	}
 
 	template<class Elem_Derived>
 	iterator insert_after(const_iterator pos, Elem_Derived const & value)
-	{
-		std::unique_ptr<basic_node> new_node = std::make_unique<node<Elem_Derived>>(value);
-		std::swap(pos.p->next, new_node->next);
-		std::swap(pos.p->next, new_node);
-		return pos.p->next.get();
+	{		
+		return pos.p->next = new node<Elem_Derived>(pos.p->next, value);
 	}
 
 	template<class Elem_Derived>
 	iterator insert_after(const_iterator pos, Elem_Derived && value)
 	{
-		std::unique_ptr<basic_node> new_node = std::make_unique<node<Elem_Derived>>(std::move(value));
-		std::swap(pos.p->next, new_node->next);
-		std::swap(pos.p->next, new_node);
-		return pos.p->next.get();
+		return pos.p->next = new node<Elem_Derived>(pos.p->next, std::move(value));
 	}
 
 	template<class Elem_Derived>
-	iterator insert_after(const_iterator pos, size_type count, Elem_Derived const & value) // needs to be optimized
+	iterator insert_after(const_iterator pos, size_type count, Elem_Derived const & value)
 	{
+		polymorphic_forward_list splice;
+		auto it = splice.before_begin();
 		for (size_type i = 0; i < count; i++)
 		{
-			insert_after<value_type>(pos, value);
+			it = splice.insert_after<Elem_Derived>(it, value);
 		}
+		splice_after(pos, splice);
+		return it;
 	}
 
 	template<class InputIt>
 	iterator insert_after(const_iterator pos, InputIt first, InputIt last)
 	{
-		using other_type = std::remove_const_t<std::remove_reference_t<decltype(*first)>>;
-		link * last_inserted = pos.p;
+		polymorphic_forward_list splice;
+		auto it = splice.before_begin();
 		while (first != last)
 		{
-			last_inserted->next = std::make_unique<node<other_type>>(*first);
-			last_inserted = last_inserted->next.get();
-			++first;
+			it = splice.insert_after<std::remove_const_t<std::remove_reference_t<decltype(*first)>>>(it, *first++);
 		}
-		return last_inserted;
+		splice_after(pos, splice);
+		return it;
 	}
 
 	template<class Elem_Derived = Elem_Base, class ... Args>
 	iterator emplace_after(const_iterator pos, Args && ... args)
 	{
-		std::unique_ptr<basic_node> new_node = std::make_unique<node<Elem_Derived>>(std::forward<Args>(args) ...);
-		std::swap(pos.p->next, new_node->next);
-		std::swap(pos.p->next, new_node);
-		return pos.p->next.get();
+		return pos.p->next = new node<Elem_Derived>(pos.p->next, std::forward<Args>(args) ...);
 	}
 
-	iterator erase_after(const_iterator pos)
+	iterator erase_after(const_iterator pos) noexcept
 	{
-		std::unique_ptr<basic_node> trash = std::move(pos.p->next);
-		std::swap(pos.p->next, trash->next);
-		return pos.p->next.get();
+		basic_node * trash = pos.p->next;
+		pos.p->next = trash->next;
+		delete trash;
+		return pos.p->next;
 	}
 	
-	iterator erase_after(const_iterator first, const_iterator last)
+	iterator erase_after(const_iterator first, const_iterator last) noexcept
 	{
-		while (first != last)
+		while ((first.p->next) != last)
 		{
-			std::unique_ptr<basic_node> trash = std::move(first.p->next);
-			std::swap(first.p->next, trash->next);
+			basic_node * trash = first.p->next;
+			first.p->next = trash->next;
+			delete trash;
 		}
 		return last.p;
 	}
@@ -289,75 +286,68 @@ public:
 	template<class Elem_Derived>
 	void push_front(Elem_Derived const & value)
 	{
-		std::unique_ptr<basic_node> new_head = std::make_unique<node<Elem_Derived>>(value);
-		std::swap(root.next, new_head->next);
-		std::swap(root.next, new_head);
+		root.next = new node<Elem_Derived>(root.next, value);
 	}
 
 	template<class Elem_Derived>
 	void push_front(Elem_Derived && value)
 	{
-		std::unique_ptr<basic_node> new_head = std::make_unique<node<Elem_Derived>>(std::move(value));
-		std::swap(root.next, new_head->next);
-		std::swap(root.next, new_head);
+		root.next = new node<Elem_Derived>(root.next, std::move(value));
 	}
 
 	template<class Elem_Derived = Elem_Base, class ... Args>
 	reference emplace_front(Args && ... args)
 	{
-		std::unique_ptr<basic_node> new_head = std::make_unique<node<Elem_Derived>>(std::forward<Args>(args) ...);
-		std::swap(root.next, new_head->next);
-		std::swap(root.next, new_head);
+		root.next = new node<Elem_Derived>(root.next, std::forward<Args>(args) ...);
 		return root.next->ref;
 	}
 
 	template<class Compare>
-	void merge(polymorphic_forward_list & other, Compare comp)
+	void merge(polymorphic_forward_list & other, Compare comp) noexcept(noexcept(comp(root.next->ref, root.next->ref)))
 	{
 		if (this == &other) return;
 		if (!other.root.next) return;
 		link * left = &root;
-        for (; left->next && other.root.next; left = left->next.get())
+        for (; other.root.next && left->next; left = left->next)
 		{
 			if (comp(other.root.next->ref, left->next->ref))
 			{
-				std::swap(left->next, other.root.next);
-				std::swap(left->next->next, other.root.next);
+				std::swap(other.root.next, left->next);
+				std::swap(other.root.next, left->next->next);
 			}
         }
 		std::swap(left->next, other.root.next);
 	}
 		
-	void merge(polymorphic_forward_list & other)
+	void merge(polymorphic_forward_list & other) noexcept(noexcept(root.next->ref < root.next->ref))
 	{
 		return merge(other, std::less{});
 	}
 
-	void merge(polymorphic_forward_list && other)
+	void merge(polymorphic_forward_list && other) noexcept(noexcept(root.next->ref < root.next->ref))
 	{
 		return merge(other, std::less{});
 	}
 
 	template<class Compare>
-	void merge(polymorphic_forward_list && other, Compare comp)
+	void merge(polymorphic_forward_list && other, Compare comp) noexcept(noexcept(merge(other, std::move(comp))))
 	{
 		return merge(other, std::move(comp));
 	}
 
-	void splice_after(const_iterator pos, polymorphic_forward_list & other)
+	void splice_after(const_iterator pos, polymorphic_forward_list & other) noexcept
 	{
-		link * it = pos.p;
-		std::swap(it->next, other.root.next); // swap our tail with the other list
-		while (it->next) it = it->next.get(); // fast forward to the end of the list
-		std::swap(it->next, other.root.next); // swap the other list onto our tail
+		std::swap(pos.p->next, other.root.next);
+		while (pos.p->next) pos++;
+		std::swap(pos.p->next, other.root.next);
 	}
 
-	void splice_after(const_iterator pos, polymorphic_forward_list && other)
+	void splice_after(const_iterator pos, polymorphic_forward_list && other) noexcept
 	{
 		splice_after(pos, other);
 	}
 
-	void swap(polymorphic_forward_list & other)
+	void swap(polymorphic_forward_list & other) noexcept
 	{
 		std::swap(root.next, other.root.next);
 	}
@@ -367,32 +357,32 @@ private:
 };
 
 template<class T>
-bool operator==(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+bool operator==(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
 {
 	return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 }
 template<class T>
-bool operator!=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+bool operator!=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
 {
 	return !operator==(lhs, rhs);
 }
 template<class T>
-bool operator<(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+bool operator<(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
 {
 	return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::less{});
 }
 template<class T>
-bool operator>=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+bool operator>=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
 {
 	return !operator<(lhs, rhs);
 }
 template<class T>
-bool operator>(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+bool operator>(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
 {
 	return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::greater{});
 }
 template<class T>
-bool operator<=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+bool operator<=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
 {
 	return !operator>(lhs, rhs);
 }

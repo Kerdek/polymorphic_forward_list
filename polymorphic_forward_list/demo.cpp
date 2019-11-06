@@ -89,7 +89,10 @@ int main()
 	pl3.emplace_front(3);
 	pl3.emplace_front(1);
 
-	pl2.merge(pl3, std::less<int>{});
+	pl3.emplace_front(0);
+
+	pl2.merge(pl3);
+	//pl2.splice_after(pl2.begin(), pl3);
 	
 	for (auto & elem : pl2)
 	{
