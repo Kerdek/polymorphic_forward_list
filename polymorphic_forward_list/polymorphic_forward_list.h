@@ -25,12 +25,16 @@ private:
 
 	struct link
 	{
-		std::unique_ptr<basic_node> next = nullptr;
+		basic_node * next = nullptr;
 	};
 
 	struct basic_node : link
 	{
-		virtual reference get_elem() noexcept = 0;
+		basic_node(reference ref) :
+			ref{ ref }
+		{ }
+
+		reference ref;
 		virtual ~basic_node() noexcept = default;
 	};
 
@@ -39,13 +43,9 @@ private:
 	{
 		template<class ... Args>
 		node(Args && ... args) noexcept(noexcept(Elem_Derived{ std::forward<Args>(args) ... })) :
+			basic_node{ elem },
 			elem{ std::forward<Args>(args) ... }
 		{ }
-
-		reference & get_elem() noexcept override
-		{
-			return elem;
-		}
 
 		Elem_Derived elem;
 	};
@@ -68,22 +68,22 @@ private:
 
 		reference operator*() const noexcept
 		{
-			return static_cast<basic_node *>(p)->get_elem();
+			return static_cast<basic_node *>(p)->ref;
 		}
 		pointer operator->() const noexcept
 		{
-			return &static_cast<basic_node *>(p)->get_elem();
+			return &static_cast<basic_node *>(p)->ref;
 		}
 
 		iterator_t & operator++() noexcept
 		{
-			p = p->next.get();
+			p = p->next;
 			return *this;
 		}
 		iterator_t operator++(int) noexcept
 		{
 			auto copy = *this;
-			p = p->next.get();
+			p = p->next;
 			return copy;
 		}
 
@@ -114,11 +114,14 @@ public:
 	polymorphic_forward_list() noexcept
 	{}
 
-	polymorphic_forward_list(polymorphic_forward_list &&) noexcept = default;
+	polymorphic_forward_list(polymorphic_forward_list &&) noexcept
+	{
+		root.next = other.root.next;
+		other.root.next = nullptr;
+	}
 	auto operator=(polymorphic_forward_list && other) noexcept -> polymorphic_forward_list &
 	{
-		clear();
-		root.next = std::move(other.root.next);
+		std::swap(root.next, other.root.next);
 	}
 
 	~polymorphic_forward_list() noexcept
@@ -151,11 +154,11 @@ public:
 
 	reference front() noexcept
 	{
-		return root.next->get_elem();
+		return root.next->ref;
 	}
 	const_reference front() const noexcept
 	{
-		return root.next->get_elem();
+		return root.next->ref;
 	}
 
 	iterator before_begin() noexcept
@@ -199,7 +202,7 @@ public:
 
 	[[nodiscard]] bool empty() const noexcept
 	{
-		return !root.next.operator bool();
+		return !root.next;
 	}
 
 	size_type max_size() const noexcept
@@ -305,7 +308,53 @@ public:
 		std::unique_ptr<basic_node> new_head = std::make_unique<node<Elem_Derived>>(std::forward<Args>(args) ...);
 		std::swap(root.next, new_head->next);
 		std::swap(root.next, new_head);
-		return root.next->get_elem();
+		return root.next->ref;
+	}
+
+	template<class Compare>
+	void merge(polymorphic_forward_list & other, Compare comp)
+	{
+		if (this == &other) return;
+		if (!other.root.next) return;
+		link * left = &root;
+        for (; left->next && other.root.next; left = left->next.get())
+		{
+			if (comp(other.root.next->ref, left->next->ref))
+			{
+				std::swap(left->next, other.root.next);
+				std::swap(left->next->next, other.root.next);
+			}
+        }
+		std::swap(left->next, other.root.next);
+	}
+		
+	void merge(polymorphic_forward_list & other)
+	{
+		return merge(other, std::less{});
+	}
+
+	void merge(polymorphic_forward_list && other)
+	{
+		return merge(other, std::less{});
+	}
+
+	template<class Compare>
+	void merge(polymorphic_forward_list && other, Compare comp)
+	{
+		return merge(other, std::move(comp));
+	}
+
+	void splice_after(const_iterator pos, polymorphic_forward_list & other)
+	{
+		link * it = pos.p;
+		std::swap(it->next, other.root.next); // swap our tail with the other list
+		while (it->next) it = it->next.get(); // fast forward to the end of the list
+		std::swap(it->next, other.root.next); // swap the other list onto our tail
+	}
+
+	void splice_after(const_iterator pos, polymorphic_forward_list && other)
+	{
+		splice_after(pos, other);
 	}
 
 	void swap(polymorphic_forward_list & other)
@@ -316,3 +365,34 @@ public:
 private:
 	link root;
 };
+
+template<class T>
+bool operator==(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+{
+	return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+}
+template<class T>
+bool operator!=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+{
+	return !operator==(lhs, rhs);
+}
+template<class T>
+bool operator<(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+{
+	return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::less{});
+}
+template<class T>
+bool operator>=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+{
+	return !operator<(lhs, rhs);
+}
+template<class T>
+bool operator>(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+{
+	return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::greater{});
+}
+template<class T>
+bool operator<=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs)
+{
+	return !operator>(lhs, rhs);
+}

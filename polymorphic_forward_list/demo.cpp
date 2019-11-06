@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <string>
+#include <forward_list>
 
 class one
 {
@@ -66,6 +67,7 @@ public:
 
 int main()
 {
+	std::forward_list<int> wut;
 	polymorphic_forward_list<one> pl;
 	
 	// emplace_front defaults to the basic element type
@@ -74,10 +76,24 @@ int main()
 	// emplace_front can be used to create nodes of derived types
 	auto bar_it = pl.emplace_after<two>(pl.begin(), "b", "c");
 	pl.emplace_after<three>(bar_it, "d", "e", "f");
+
+	polymorphic_forward_list<int> pl2;
+
+	pl2.emplace_front(4);
+	pl2.emplace_front(2);
+	pl2.emplace_front(1);
+
+	polymorphic_forward_list<int> pl3;
+
+	pl3.emplace_front(4);
+	pl3.emplace_front(3);
+	pl3.emplace_front(1);
+
+	pl2.merge(pl3, std::less<int>{});
 	
-	for (auto & elem : pl)
+	for (auto & elem : pl2)
 	{
-		std::cout << elem.get() << '\n';
+		std::cout << elem << '\n';
 	}
 	
 	// elements need not have virtual destructors, they are destroyed through the derived type
