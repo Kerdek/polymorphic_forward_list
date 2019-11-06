@@ -117,8 +117,7 @@ public:
 	polymorphic_forward_list(polymorphic_forward_list &&) noexcept = default;
 	auto operator=(polymorphic_forward_list && other) noexcept -> polymorphic_forward_list &
 	{
-		clear();
-		root.next = std::move(other.root.next);
+		std::swap(root.next, other.root.next);
 	}
 
 	~polymorphic_forward_list() noexcept
