@@ -381,12 +381,12 @@ public:
 
 	void merge(polymorphic_forward_list & other) noexcept(noexcept(root.next->ref < root.next->ref))
 	{
-		return merge(other, std::less{});
+		merge(other, std::less{});
 	}
 
 	void merge(polymorphic_forward_list && other) noexcept(noexcept(root.next->ref < root.next->ref))
 	{
-		return merge(other, std::less{});
+		merge(other, std::less{});
 	}
 
 	template<class Compare>
