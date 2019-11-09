@@ -413,7 +413,7 @@ public:
 	template<class Compare>
 	void merge(polymorphic_forward_list && other, Compare comp) noexcept(noexcept(merge(other, std::move(comp))))
 	{
-		return merge(other, std::move(comp));
+		merge(other, std::move(comp));
 	}
 
 	void splice_after(const_iterator pos, polymorphic_forward_list & other) noexcept
