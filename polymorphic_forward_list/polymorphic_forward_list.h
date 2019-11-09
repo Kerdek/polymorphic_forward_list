@@ -13,7 +13,7 @@ public:
 	using reference = value_type &;
 	using const_reference = value_type const &;
 	using pointer = value_type *;
-	using difference_type = decltype(pointer{} -pointer{});
+	using difference_type = void;
 	using const_pointer = value_type const *;
 
 	class iterator;
