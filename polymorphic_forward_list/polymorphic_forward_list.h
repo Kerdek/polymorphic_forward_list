@@ -10,10 +10,10 @@ class polymorphic_forward_list
 public:
 	using value_type = Elem_Base;
 	using size_type = size_t;
+	using difference_type = void;
 	using reference = value_type &;
 	using const_reference = value_type const &;
 	using pointer = value_type *;
-	using difference_type = void;
 	using const_pointer = value_type const *;
 
 	class iterator;
@@ -24,8 +24,8 @@ public:
 		friend class polymorphic_forward_list;
 
 	public:
-		using difference_type = void;
 		using value_type = value_type;
+		using difference_type = difference_type;
 		using pointer = pointer;
 		using reference = reference;
 		using iterator_category = std::forward_iterator_tag;
@@ -165,10 +165,12 @@ private:
 
 	struct basic_node : link
 	{
-		basic_node(basic_node * next, reference ref) :
-			link{ next },
+		basic_node(link & after, reference ref) :
+			link{ after.next },
 			ref{ ref }
-		{ }
+		{ 
+			after.next = this;
+		}
 
 		virtual ~basic_node() noexcept = default;
 
@@ -190,9 +192,9 @@ private:
 	struct node : basic_owner<Elem_Derived>, basic_node
 	{
 		template<class ... Args>
-		node(basic_node * next, Args && ... args) noexcept(noexcept(Elem_Derived{ std::forward<Args>(args) ... })) :
+		node(link & after, Args && ... args) noexcept(noexcept(Elem_Derived{ std::forward<Args>(args) ... })) :
 			basic_owner<Elem_Derived>{ std::forward<Args>(args) ... },
-			basic_node{ next, basic_owner<Elem_Derived>::elem }
+			basic_node{ after.next, basic_owner<Elem_Derived>::elem }
 		{ }
 	};
 
@@ -295,63 +297,70 @@ public:
 
 	void clear() noexcept
 	{
-		erase_after(&root, end());
+		erase_after(cbefore_begin(), cend());
 	}
 
 	template<class Elem_Derived>
 	iterator insert_after(const_iterator pos, Elem_Derived const & value)
 	{
-		return pos.p->next = new node<Elem_Derived>(pos.p->next, value);
+		return new node<Elem_Derived>(*pos.p, value);
 	}
 
 	template<class Elem_Derived>
 	iterator insert_after(const_iterator pos, Elem_Derived && value)
 	{
-		return pos.p->next = new node<Elem_Derived>(pos.p->next, std::move(value));
+		return new node<Elem_Derived>(*pos.p, std::move(value));
 	}
 
 	template<class Elem_Derived>
 	iterator insert_after(const_iterator pos, size_type count, Elem_Derived const & value)
 	{
 		polymorphic_forward_list splice;
-		auto it = splice.before_begin();
+		auto splice_before_end = splice.before_begin();
 		for (size_type i = 0; i < count; i++)
 		{
-			it = splice.insert_after<Elem_Derived>(it, value);
+			splice_before_end = splice.insert_after<Elem_Derived>(splice_before_end, value);
 		}
-		splice_after(pos, splice);
-		return it;
+		link * temp = pos.p->next;
+		pos.p->next = splice.root.next;
+		splice_before_end.p->next = temp;
+		splice.root.next = nullptr;
+		return splice_before_end;
 	}
 
 	template<class InputIt>
 	iterator insert_after(const_iterator pos, InputIt first, InputIt last)
 	{
 		polymorphic_forward_list splice;
-		auto it = splice.before_begin();
+		auto splice_before_end = splice.before_begin();
 		while (first != last)
 		{
-			it = splice.insert_after<std::remove_const_t<std::remove_reference_t<decltype(*first)>>>(it, *first++);
+			splice_before_end = splice.insert_after<std::remove_const_t<std::remove_reference_t<decltype(*first)>>>(splice_before_end, *first++);
 		}
-		splice_after(pos, splice);
-		return it;
+		link * temp = pos.p->next;
+		pos.p->next = splice.root.next;
+		splice_before_end.p->next = temp;
+		splice.root.next = nullptr;
+		return splice_before_end;
 	}
 
 	template<class Elem_Derived = Elem_Base, class ... Args>
 	iterator emplace_after(const_iterator pos, Args && ... args)
 	{
-		return pos.p->next = new node<Elem_Derived>(pos.p->next, std::forward<Args>(args) ...);
+		return new node<Elem_Derived>(*pos.p, std::forward<Args>(args) ...);
 	}
 
 	iterator erase_after(const_iterator pos) noexcept
 	{
 		basic_node * trash = pos.p->next;
 		pos.p->next = trash->next;
+		delete trash;
 		return pos.p->next;
 	}
 
 	iterator erase_after(const_iterator first, const_iterator last) noexcept
 	{
-		while ((first.p->next) != last)
+		while ((first.p->next) != last.p)
 		{
 			basic_node * trash = first.p->next;
 			first.p->next = trash->next;
@@ -363,20 +372,19 @@ public:
 	template<class Elem_Derived>
 	void push_front(Elem_Derived const & value)
 	{
-		root.next = new node<Elem_Derived>(root.next, value);
+		new node<Elem_Derived>(root, value);
 	}
 
 	template<class Elem_Derived>
 	void push_front(Elem_Derived && value)
 	{
-		root.next = new node<Elem_Derived>(root.next, std::move(value));
+		new node<Elem_Derived>(root, std::move(value));
 	}
 
 	template<class Elem_Derived = Elem_Base, class ... Args>
 	reference emplace_front(Args && ... args)
 	{
-		root.next = new node<Elem_Derived>(root.next, std::forward<Args>(args) ...);
-		return root.next->ref;
+		return (new node<Elem_Derived>(root, std::forward<Args>(args) ...))->ref;
 	}
 
 	void merge(polymorphic_forward_list & other) noexcept(noexcept(root.next->ref < root.next->ref))
@@ -438,7 +446,7 @@ public:
 	{
 		basic_node * temp = pos.p->next;
 		pos.p->next = first.p->next;
-		while (pos.p->next != last) ++pos;
+		while (pos.p->next != last.p) ++pos;
 		first.p->next = pos.p->next;
 		pos.p->next = temp;
 	}
