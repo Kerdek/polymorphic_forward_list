@@ -5,8 +5,6 @@
 template<class Elem_Base>
 class polymorphic_forward_list
 {
-	class link;
-	
 public:
 	using value_type = Elem_Base;
 	using size_type = size_t;
@@ -15,6 +13,62 @@ public:
 	using const_reference = value_type const &;
 	using pointer = value_type *;
 	using const_pointer = value_type const *;
+
+private:
+	class basic_node;
+
+	struct link
+	{
+		link() = delete;
+		link(link const &) = delete;
+		link(link &&) = delete;
+		link & operator=(link const &) = delete;
+		link & operator=(link &&) = delete;
+		~link() = default;
+
+		link(basic_node * next) :
+			next{ next }
+		{ }
+
+		basic_node * next;
+	};
+
+	struct basic_node : link
+	{
+		basic_node(link & after, reference ref) :
+			link{ after.next },
+			ref{ ref }
+		{
+			after.next = this;
+		}
+
+		virtual ~basic_node() noexcept = default;
+
+		reference ref;
+	};
+
+	template<class Elem_Derived>
+	struct basic_owner
+	{
+		template<class ... Args>
+		basic_owner(Args && ... args) noexcept(noexcept(Elem_Derived{ std::forward<Args>(args) ... })) :
+			elem{ std::forward<Args>(args) ... }
+		{ }
+
+		Elem_Derived elem;
+	};
+
+	template<class Elem_Derived>
+	struct node : basic_owner<Elem_Derived>, basic_node
+	{
+		template<class ... Args>
+		node(link & after, Args && ... args) noexcept(noexcept(Elem_Derived{ std::forward<Args>(args) ... })) :
+			basic_owner<Elem_Derived>{ std::forward<Args>(args) ... },
+			basic_node{ after, basic_owner<Elem_Derived>::elem }
+		{ }
+	};
+
+public:
 
 	class iterator;
 	class const_iterator;
@@ -64,25 +118,15 @@ public:
 			return p == other.p;
 		}
 
-		operator const_iterator()
-		{
-			return p;
-		}
-
 	private:
 		link * p = nullptr;
 
 		iterator(const_iterator const & other) :
 			p{ other.p }
 		{ }
-		iterator(link * l) noexcept :
-			p{ l }
+		iterator(link * p) noexcept :
+			p{ p }
 		{ }
-
-		operator link * () noexcept
-		{
-			return p;
-		}
 	};
 
 	class const_iterator
@@ -96,17 +140,21 @@ public:
 		using reference = const_reference;
 		using iterator_category = std::forward_iterator_tag;
 
+		const_iterator(iterator const & other) :
+			p{ other.p }
+		{ }
+
 		const_iterator() noexcept = default;
 		const_iterator(const_iterator const &) noexcept = default;
 		auto operator=(const_iterator const &) noexcept->const_iterator & = default;
 
 		reference operator*() const noexcept
 		{
-			return static_cast<basic_node &>(*p).ref;
+			return static_cast<basic_node const &>(*p).ref;
 		}
 		pointer operator->() const noexcept
 		{
-			return &static_cast<basic_node &>(*p).ref;
+			return &static_cast<basic_node const &>(*p).ref;
 		}
 
 		const_iterator & operator++() noexcept
@@ -133,72 +181,10 @@ public:
 	private:
 		link * p = nullptr;
 
-		const_iterator(link * l) noexcept :
-			p{ l }
-		{ }
-
-		operator link * () noexcept
-		{
-			return p;
-		}
-	};
-
-private:
-
-	class basic_node;
-
-	struct link
-	{
-		link() = delete;
-		link(link const &) = delete;
-		link(link &&) = delete;
-		link & operator=(link const &) = delete;
-		link & operator=(link &&) = delete;
-		~link() = default;
-
-		link(basic_node * next) :
-			next{ next }
-		{ }
-
-		basic_node * next;
-	};
-
-	struct basic_node : link
-	{
-		basic_node(link & after, reference ref) :
-			link{ after.next },
-			ref{ ref }
-		{ 
-			after.next = this;
-		}
-
-		virtual ~basic_node() noexcept = default;
-
-		reference ref;
-	};
-
-	template<class Elem_Derived>
-	struct basic_owner
-	{
-		template<class ... Args>
-		basic_owner(Args && ... args) noexcept(noexcept(Elem_Derived{ std::forward<Args>(args) ... })) :
-			elem{ std::forward<Args>(args) ... }
-		{ }
-
-		Elem_Derived elem;
-	};
-
-	template<class Elem_Derived>
-	struct node : basic_owner<Elem_Derived>, basic_node
-	{
-		template<class ... Args>
-		node(link & after, Args && ... args) noexcept(noexcept(Elem_Derived{ std::forward<Args>(args) ... })) :
-			basic_owner<Elem_Derived>{ std::forward<Args>(args) ... },
-			basic_node{ after.next, basic_owner<Elem_Derived>::elem }
+		const_iterator(link * p) noexcept :
+			p{ p }
 		{ }
 	};
-
-public:
 
 	polymorphic_forward_list() noexcept :
 		root{ nullptr }
@@ -218,23 +204,73 @@ public:
 
 	~polymorphic_forward_list() noexcept
 	{
-		clear();
+		while (root.next)
+		{
+			basic_node * trash = root.next;
+			root.next = trash->next;
+			delete trash;
+		}
 	}
 
 	void assign(size_type count, const_reference value)
 	{
-		clear();
-		for (size_type i = 0; i < count; i++)
+		link assign_root = nullptr;
+		link * assign_before_end = &assign_root;
+		try
 		{
-			emplace_front<value_type>(value);
+			for (size_type i = 0; i < count; i++)
+			{
+				assign_before_end = new node<std::remove_const_t<std::remove_reference_t<const_reference>>>(*assign_before_end, value);
+			}
 		}
+		catch (...)
+		{
+			while (assign_root.next)
+			{
+				basic_node * trash = assign_root.next;
+				assign_root.next = trash->next;
+				delete trash;
+			}
+			throw;
+		}
+		while (root.next)
+		{
+			basic_node * trash = root.next;
+			root.next = trash->next;
+			delete trash;
+		}
+		root.next = assign_root.next;
 	}
 
-	template<class InputIt>
+	template<class InputIt, class = std::enable_if_t<!std::is_integral_v<InputIt>>>
 	void assign(InputIt first, InputIt last)
 	{
-		clear();
-		insert_after(&root, first, last);
+		link assign_root = nullptr;
+		link * assign_before_end = &assign_root;
+		try
+		{
+			while (first != last)
+			{
+				assign_before_end = new node<std::remove_const_t<std::remove_reference_t<decltype(*first)>>>(*assign_before_end, *first++);
+			}
+		}
+		catch (...)
+		{
+			while (assign_root.next)
+			{
+				basic_node * trash = assign_root.next;
+				assign_root.next = trash->next;
+				delete trash;
+			}
+			throw;
+		}
+		while (root.next)
+		{
+			basic_node * trash = root.next;
+			root.next = trash->next;
+			delete trash;
+		}
+		root.next = assign_root.next;
 	}
 
 	reference front() noexcept
@@ -256,12 +292,12 @@ public:
 	}
 	iterator end() noexcept
 	{
-		return {};
+		return nullptr;
 	}
 
 	const_iterator before_begin() const noexcept
 	{
-		return const_cast<link *>(&root); // This is okay because functions which modify the container will never be called through a const reference
+		return const_cast<link *>(&root);
 	}
 	const_iterator begin() const noexcept
 	{
@@ -269,12 +305,12 @@ public:
 	}
 	const_iterator end() const noexcept
 	{
-		return {};
+		return nullptr;
 	}
 
 	const_iterator cbefore_begin() const noexcept
 	{
-		return const_cast<link *>(&root); // This is okay because functions which modify the container will never be called through a const reference
+		return const_cast<link *>(&root);
 	}
 	const_iterator cbegin() const noexcept
 	{
@@ -282,7 +318,7 @@ public:
 	}
 	const_iterator cend() const noexcept
 	{
-		return {};
+		return nullptr;
 	}
 
 	[[nodiscard]] bool empty() const noexcept
@@ -297,7 +333,12 @@ public:
 
 	void clear() noexcept
 	{
-		erase_after(cbefore_begin(), cend());
+		while (root.next)
+		{
+			basic_node * trash = root.next;
+			root.next = trash->next;
+			delete trash;
+		}
 	}
 
 	template<class Elem_Derived>
@@ -315,32 +356,56 @@ public:
 	template<class Elem_Derived>
 	iterator insert_after(const_iterator pos, size_type count, Elem_Derived const & value)
 	{
-		polymorphic_forward_list splice;
-		auto splice_before_end = splice.before_begin();
-		for (size_type i = 0; i < count; i++)
+		link splice_root;
+		link * splice_before_end = &splice_root;
+		try
 		{
-			splice_before_end = splice.insert_after<Elem_Derived>(splice_before_end, value);
+			for (size_type i = 0; i < count; i++)
+			{
+				splice_before_end = new node<Elem_Derived>(splice_before_end, value);
+			}
+		}
+		catch (...)
+		{
+			while (splice_root.next)
+			{
+				basic_node * trash = splice_root.next;
+				splice_root.next = trash->next;
+				delete trash;
+			}
+			throw;
 		}
 		link * temp = pos.p->next;
-		pos.p->next = splice.root.next;
+		pos.p->next = splice_root.next;
 		splice_before_end.p->next = temp;
-		splice.root.next = nullptr;
 		return splice_before_end;
 	}
 
-	template<class InputIt>
+	template<class InputIt, class = std::enable_if_t<!std::is_integral_v<InputIt>>>
 	iterator insert_after(const_iterator pos, InputIt first, InputIt last)
 	{
-		polymorphic_forward_list splice;
-		auto splice_before_end = splice.before_begin();
-		while (first != last)
+		link splice_root;
+		link * splice_before_end = &splice_root;
+		try
 		{
-			splice_before_end = splice.insert_after<std::remove_const_t<std::remove_reference_t<decltype(*first)>>>(splice_before_end, *first++);
+			while (first != last)
+			{
+				splice_before_end = new node<std::remove_const_t<std::remove_reference_t<decltype(*first)>>>(splice_before_end, *first++);
+			}
+		}
+		catch (...)
+		{
+			while (splice_root.next)
+			{
+				basic_node * trash = splice_root.next;
+				splice_root.next = trash->next;
+				delete trash;
+			}
+			throw;
 		}
 		link * temp = pos.p->next;
-		pos.p->next = splice.root.next;
+		pos.p->next = splice_root.next;
 		splice_before_end.p->next = temp;
-		splice.root.next = nullptr;
 		return splice_before_end;
 	}
 
@@ -387,27 +452,42 @@ public:
 		return (new node<Elem_Derived>(root, std::forward<Args>(args) ...))->ref;
 	}
 
-	void merge(polymorphic_forward_list & other) noexcept(noexcept(root.next->ref < root.next->ref))
-	{
-		merge(other, std::less{});
-	}
-
-	void merge(polymorphic_forward_list && other) noexcept(noexcept(root.next->ref < root.next->ref))
-	{
-		merge(other, std::less{});
-	}
-
-	template<class Compare>
-	void merge(polymorphic_forward_list & other, Compare comp) noexcept(noexcept(comp(root.next->ref, root.next->ref)))
+	void merge(polymorphic_forward_list & other) noexcept(noexcept(root.next->ref < root.next->ref)) // fails SEG
 	{
 		if (this == &other) return;
 		if (!other.root.next) return;
 		link * pivot = &root;
 		for (; pivot->next && other.root.next; pivot = pivot->next)
 		{
-			if (comp(other.root.next->ref, pivot->next->ref))
+			if (other.root.next->ref < pivot->next->ref)
 			{
-				splice_after(pivot, &other.root);
+				basic_node * temp = pivot->next;
+				pivot->next = other.root.next;
+				other.root.next = other.root.next->next;
+				pivot->next->next = temp;
+			}
+		}
+		if (other.root.next)
+		{
+			basic_node * temp = other.root.next;
+			other.root.next = pivot->next;
+			pivot->next = temp;
+		}
+	}
+
+	void merge(polymorphic_forward_list && other) noexcept(noexcept(root.next->ref < root.next->ref)) // fails SEG
+	{
+		if (this == &other) return;
+		if (!other.root.next) return;
+		link * pivot = &root;
+		for (; pivot->next && other.root.next; pivot = pivot->next)
+		{
+			if (other.root.next->ref < pivot->next->ref)
+			{
+				basic_node * temp = pivot->next;
+				pivot->next = other.root.next;
+				other.root.next = other.root.next->next;
+				pivot->next->next = temp;
 			}
 		}
 		if (other.root.next)
@@ -419,19 +499,69 @@ public:
 	}
 
 	template<class Compare>
-	void merge(polymorphic_forward_list && other, Compare comp) noexcept(noexcept(merge(other, std::move(comp))))
+	void merge(polymorphic_forward_list & other, Compare comp) noexcept(noexcept(comp(root.next->ref, root.next->ref))) // fails SEG
 	{
-		merge(other, std::move(comp));
+		if (this == &other) return;
+		if (!other.root.next) return;
+		link * pivot = &root;
+		for (; pivot->next && other.root.next; pivot = pivot->next)
+		{
+			if (comp(other.root.next->ref, pivot->next->ref))
+			{
+				basic_node * temp = pivot->next;
+				pivot->next = other.root.next;
+				other.root.next = other.root.next->next;
+				pivot->next->next = temp;
+			}
+		}
+		if (other.root.next)
+		{
+			basic_node * temp = other.root.next;
+			other.root.next = pivot->next;
+			pivot->next = temp;
+		}
+	}
+
+	template<class Compare>
+	void merge(polymorphic_forward_list && other, Compare comp) noexcept(noexcept(comp(root.next->ref, root.next->ref))) // fails SEG
+	{
+		if (this == &other) return;
+		if (!other.root.next) return;
+		link * pivot = &root;
+		for (; pivot->next && other.root.next; pivot = pivot->next)
+		{
+			if (comp(other.root.next->ref, pivot->next->ref))
+			{
+				basic_node * temp = pivot->next;
+				pivot->next = other.root.next;
+				other.root.next = other.root.next->next;
+				pivot->next->next = temp;
+			}
+		}
+		if (other.root.next)
+		{
+			basic_node * temp = other.root.next;
+			other.root.next = pivot->next;
+			pivot->next = temp;
+		}
 	}
 
 	void splice_after(const_iterator pos, polymorphic_forward_list & other) noexcept
 	{
-		splice_after(pos, other.before_begin(), other.end());
+		basic_node * temp = pos.p->next;
+		pos.p->next = other.root.next;
+		other.root.next = nullptr;
+		while (pos.p->next) ++pos;
+		pos.p->next = temp;
 	}
 
 	void splice_after(const_iterator pos, polymorphic_forward_list && other) noexcept
 	{
-		splice_after(pos, other);
+		basic_node * temp = pos.p->next;
+		pos.p->next = other.root.next;
+		other.root.next = nullptr;
+		while (pos.p->next) ++pos;
+		pos.p->next = temp;
 	}
 
 	void splice_after(const_iterator pos, const_iterator it) noexcept
@@ -456,6 +586,39 @@ public:
 		basic_node * temp = root.next;
 		root.next = other.root.next;
 		other.root.next = temp;
+	}
+
+	size_type remove(const_reference value)
+	{
+		size_type removed_count = 0;
+		for (link * pivot = &root; pivot->next; pivot = pivot->next)
+		{
+			if (pivot->next->ref == value)
+			{
+				basic_node * trash = pivot->next;
+				pivot->next = trash->next;
+				delete trash;
+				removed_count++;
+			}
+		}
+		return removed_count;
+	}
+
+	template<class UnaryPredicate>
+	size_type remove_if(UnaryPredicate p)  // fails SEG
+	{
+		size_type removed_count = 0;
+		for (link * pivot = &root; pivot->next; pivot = pivot->next)
+		{
+			if (p(pivot->next->ref))
+			{
+				basic_node * trash = pivot->next;
+				pivot->next = trash->next;
+				delete trash;
+				removed_count++;
+			}
+		}
+		return removed_count;
 	}
 
 private:
