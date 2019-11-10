@@ -131,7 +131,7 @@
     <ClCompile Include="demo.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="polymorphic_forward_list.h" />
+    <ClInclude Include="polymorphic_forward_list.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
