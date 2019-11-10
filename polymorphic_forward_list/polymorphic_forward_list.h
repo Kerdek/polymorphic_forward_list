@@ -15,7 +15,7 @@ public:
 	using const_pointer = value_type const *;
 
 private:
-	class basic_node;
+	struct basic_node;
 
 	struct link
 	{
@@ -26,7 +26,7 @@ private:
 		link & operator=(link &&) = delete;
 		~link() = default;
 
-		link(basic_node * next) :
+		link(basic_node * next) noexcept :
 			next{ next }
 		{ }
 
@@ -35,7 +35,7 @@ private:
 
 	struct basic_node : link
 	{
-		basic_node(link & after, reference ref) :
+		basic_node(link & after, reference ref) noexcept :
 			link{ after.next },
 			ref{ ref }
 		{
@@ -88,32 +88,32 @@ public:
 		iterator(iterator const &) noexcept = default;
 		auto operator=(iterator const &) noexcept->iterator & = default;
 
-		reference operator*() const noexcept
+		auto operator*() const noexcept -> reference
 		{
 			return static_cast<basic_node &>(*p).ref;
 		}
-		pointer operator->() const noexcept
+		auto operator->() const noexcept -> pointer
 		{
 			return &static_cast<basic_node &>(*p).ref;
 		}
 
-		iterator & operator++() noexcept
+		auto operator++() noexcept -> iterator &
 		{
 			p = p->next;
 			return *this;
 		}
-		iterator operator++(int) noexcept
+		auto operator++(int) noexcept -> iterator
 		{
 			auto copy = *this;
 			p = p->next;
 			return copy;
 		}
 
-		bool operator!=(iterator const & other) noexcept
+		auto operator!=(iterator const & other) noexcept -> bool
 		{
 			return p != other.p;
 		}
-		bool operator==(iterator const & other) noexcept
+		auto operator==(iterator const & other) noexcept -> bool
 		{
 			return p == other.p;
 		}
@@ -148,32 +148,32 @@ public:
 		const_iterator(const_iterator const &) noexcept = default;
 		auto operator=(const_iterator const &) noexcept->const_iterator & = default;
 
-		reference operator*() const noexcept
+		auto operator*() const noexcept -> reference
 		{
 			return static_cast<basic_node const &>(*p).ref;
 		}
-		pointer operator->() const noexcept
+		auto operator->() const noexcept -> pointer
 		{
 			return &static_cast<basic_node const &>(*p).ref;
 		}
 
-		const_iterator & operator++() noexcept
+		auto operator++() noexcept -> const_iterator &
 		{
 			p = p->next;
 			return *this;
 		}
-		const_iterator operator++(int) noexcept
+		auto operator++(int) noexcept -> const_iterator
 		{
 			auto copy = *this;
 			p = p->next;
 			return copy;
 		}
 
-		bool operator!=(const_iterator const & other) noexcept
+		auto operator!=(const_iterator const & other) noexcept -> bool
 		{
 			return p != other.p;
 		}
-		bool operator==(const_iterator const & other) noexcept
+		auto operator==(const_iterator const & other) noexcept -> bool
 		{
 			return p == other.p;
 		}
@@ -189,12 +189,13 @@ public:
 	polymorphic_forward_list() noexcept :
 		root{ nullptr }
 	{}
-
+	polymorphic_forward_list(polymorphic_forward_list const & other) = delete;
 	polymorphic_forward_list(polymorphic_forward_list && other) noexcept :
 		root{ other.root.next }
 	{
 		other.root.next = nullptr;
 	}
+	auto operator=(polymorphic_forward_list const & other) -> polymorphic_forward_list & = delete;
 	auto operator=(polymorphic_forward_list && other) noexcept -> polymorphic_forward_list &
 	{
 		basic_node * temp = root.next;
@@ -273,60 +274,60 @@ public:
 		root.next = assign_root.next;
 	}
 
-	reference front() noexcept
+	auto front() noexcept -> reference
 	{
 		return root.next->ref;
 	}
-	const_reference front() const noexcept
+	auto front() const noexcept -> const_reference
 	{
 		return root.next->ref;
 	}
 
-	iterator before_begin() noexcept
+	auto before_begin() noexcept -> iterator
 	{
 		return &root;
 	}
-	iterator begin() noexcept
+	auto begin() noexcept -> iterator
 	{
 		return root.next;
 	}
-	iterator end() noexcept
+	auto end() noexcept -> iterator
 	{
 		return nullptr;
 	}
 
-	const_iterator before_begin() const noexcept
+	auto before_begin() const noexcept -> const_iterator
 	{
 		return const_cast<link *>(&root);
 	}
-	const_iterator begin() const noexcept
+	auto begin() const noexcept -> const_iterator
 	{
 		return root.next;
 	}
-	const_iterator end() const noexcept
+	auto end() const noexcept -> const_iterator
 	{
 		return nullptr;
 	}
 
-	const_iterator cbefore_begin() const noexcept
+	auto cbefore_begin() const noexcept -> const_iterator
 	{
 		return const_cast<link *>(&root);
 	}
-	const_iterator cbegin() const noexcept
+	auto cbegin() const noexcept -> const_iterator
 	{
 		return root.next;
 	}
-	const_iterator cend() const noexcept
+	auto cend() const noexcept -> const_iterator
 	{
 		return nullptr;
 	}
 
-	[[nodiscard]] bool empty() const noexcept
+	[[nodiscard]] auto empty() const noexcept -> bool
 	{
 		return !root.next;
 	}
 
-	size_type max_size() const noexcept
+	auto max_size() const noexcept -> size_type
 	{
 		return std::numeric_limits<size_type>::max();
 	}
@@ -342,19 +343,19 @@ public:
 	}
 
 	template<class Elem_Derived>
-	iterator insert_after(const_iterator pos, Elem_Derived const & value)
+	auto insert_after(const_iterator pos, Elem_Derived const & value) -> iterator
 	{
 		return new node<Elem_Derived>(*pos.p, value);
 	}
 
 	template<class Elem_Derived>
-	iterator insert_after(const_iterator pos, Elem_Derived && value)
+	auto insert_after(const_iterator pos, Elem_Derived && value) -> iterator
 	{
 		return new node<Elem_Derived>(*pos.p, std::move(value));
 	}
 
 	template<class Elem_Derived>
-	iterator insert_after(const_iterator pos, size_type count, Elem_Derived const & value)
+	auto insert_after(const_iterator pos, size_type count, Elem_Derived const & value) -> iterator
 	{
 		link splice_root;
 		link * splice_before_end = &splice_root;
@@ -382,7 +383,7 @@ public:
 	}
 
 	template<class InputIt, class = std::enable_if_t<!std::is_integral_v<InputIt>>>
-	iterator insert_after(const_iterator pos, InputIt first, InputIt last)
+	auto insert_after(const_iterator pos, InputIt first, InputIt last) -> iterator
 	{
 		link splice_root;
 		link * splice_before_end = &splice_root;
@@ -410,12 +411,12 @@ public:
 	}
 
 	template<class Elem_Derived = Elem_Base, class ... Args>
-	iterator emplace_after(const_iterator pos, Args && ... args)
+	auto emplace_after(const_iterator pos, Args && ... args) -> iterator
 	{
 		return new node<Elem_Derived>(*pos.p, std::forward<Args>(args) ...);
 	}
 
-	iterator erase_after(const_iterator pos) noexcept
+	auto erase_after(const_iterator pos) noexcept
 	{
 		basic_node * trash = pos.p->next;
 		pos.p->next = trash->next;
@@ -423,7 +424,7 @@ public:
 		return pos.p->next;
 	}
 
-	iterator erase_after(const_iterator first, const_iterator last) noexcept
+	auto erase_after(const_iterator first, const_iterator last) noexcept -> iterator
 	{
 		while ((first.p->next) != last.p)
 		{
@@ -447,12 +448,12 @@ public:
 	}
 
 	template<class Elem_Derived = Elem_Base, class ... Args>
-	reference emplace_front(Args && ... args)
+	auto emplace_front(Args && ... args) -> reference
 	{
 		return (new node<Elem_Derived>(root, std::forward<Args>(args) ...))->ref;
 	}
 
-	void merge(polymorphic_forward_list & other) noexcept(noexcept(root.next->ref < root.next->ref)) // fails SEG
+	void merge(polymorphic_forward_list & other) noexcept(noexcept(root.next->ref < root.next->ref))
 	{
 		if (this == &other) return;
 		if (!other.root.next) return;
@@ -475,7 +476,7 @@ public:
 		}
 	}
 
-	void merge(polymorphic_forward_list && other) noexcept(noexcept(root.next->ref < root.next->ref)) // fails SEG
+	void merge(polymorphic_forward_list && other) noexcept(noexcept(root.next->ref < root.next->ref))
 	{
 		if (this == &other) return;
 		if (!other.root.next) return;
@@ -499,7 +500,7 @@ public:
 	}
 
 	template<class Compare>
-	void merge(polymorphic_forward_list & other, Compare comp) noexcept(noexcept(comp(root.next->ref, root.next->ref))) // fails SEG
+	void merge(polymorphic_forward_list & other, Compare comp) noexcept(noexcept(comp(root.next->ref, root.next->ref)))
 	{
 		if (this == &other) return;
 		if (!other.root.next) return;
@@ -523,7 +524,7 @@ public:
 	}
 
 	template<class Compare>
-	void merge(polymorphic_forward_list && other, Compare comp) noexcept(noexcept(comp(root.next->ref, root.next->ref))) // fails SEG
+	void merge(polymorphic_forward_list && other, Compare comp) noexcept(noexcept(comp(root.next->ref, root.next->ref)))
 	{
 		if (this == &other) return;
 		if (!other.root.next) return;
@@ -548,37 +549,37 @@ public:
 
 	void splice_after(const_iterator pos, polymorphic_forward_list & other) noexcept
 	{
-		basic_node * temp = pos.p->next;
+		basic_node * pivot = pos.p->next;
 		pos.p->next = other.root.next;
 		other.root.next = nullptr;
 		while (pos.p->next) ++pos;
-		pos.p->next = temp;
+		pos.p->next = pivot;
 	}
 
 	void splice_after(const_iterator pos, polymorphic_forward_list && other) noexcept
 	{
-		basic_node * temp = pos.p->next;
+		basic_node * pivot = pos.p->next;
 		pos.p->next = other.root.next;
 		other.root.next = nullptr;
 		while (pos.p->next) ++pos;
-		pos.p->next = temp;
+		pos.p->next = pivot;
 	}
 
 	void splice_after(const_iterator pos, const_iterator it) noexcept
 	{
-		basic_node * temp = pos.p->next;
+		basic_node * pivot = pos.p->next;
 		pos.p->next = it.p->next;
 		it.p->next = it.p->next->next;
-		pos.p->next->next = temp;
+		pos.p->next->next = pivot;
 	}
 
 	void splice_after(const_iterator pos, const_iterator first, const_iterator last) noexcept
 	{
-		basic_node * temp = pos.p->next;
+		basic_node * pivot = pos.p->next;
 		pos.p->next = first.p->next;
 		while (pos.p->next != last.p) ++pos;
 		first.p->next = pos.p->next;
-		pos.p->next = temp;
+		pos.p->next = pivot;
 	}
 
 	void swap(polymorphic_forward_list & other) noexcept
@@ -588,7 +589,7 @@ public:
 		other.root.next = temp;
 	}
 
-	size_type remove(const_reference value)
+	auto remove(const_reference value) -> size_type
 	{
 		size_type removed_count = 0;
 		for (link * pivot = &root; pivot->next; pivot = pivot->next)
@@ -605,7 +606,7 @@ public:
 	}
 
 	template<class UnaryPredicate>
-	size_type remove_if(UnaryPredicate p)  // fails SEG
+	auto remove_if(UnaryPredicate p) -> size_type
 	{
 		size_type removed_count = 0;
 		for (link * pivot = &root; pivot->next; pivot = pivot->next)
@@ -626,32 +627,32 @@ private:
 };
 
 template<class T>
-bool operator==(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
+auto operator==(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 }
 template<class T>
-bool operator!=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
+auto operator!=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	return !operator==(lhs, rhs);
 }
 template<class T>
-bool operator<(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
+auto operator<(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::less{});
 }
 template<class T>
-bool operator>=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
+auto operator>=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	return !operator<(lhs, rhs);
 }
 template<class T>
-bool operator>(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
+auto operator>(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::greater{});
 }
 template<class T>
-bool operator<=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept
+auto operator<=(polymorphic_forward_list<T> const & lhs, polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	return !operator>(lhs, rhs);
 }
