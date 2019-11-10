@@ -1,7 +1,7 @@
 #ifndef POLYMORPHIC_FORWARD_LIST_HPP
 #define POLYMORPHIC_FORWARD_LIST_HPP
 
-#include <algorithm>
+#include <iterator>
 
 template<class Elem_Base>
 class polymorphic_forward_list
@@ -540,10 +540,10 @@ public:
 		{
 			if (comp(other.root.next->ref, pivot->next->ref))
 			{
-				basic_node * temp = pivot->next;
+				basic_node * saved = pivot->next;
 				pivot->next = other.root.next;
 				other.root.next = pivot->next->next;
-				pivot->next->next = temp;
+				pivot->next->next = saved;
 			}
 		}
 		if (other.root.next)
@@ -585,7 +585,7 @@ public:
 		basic_node * saved = pos.p->next;
 		pos.p->next = other.root.next;
 		other.root.next = nullptr;
-		while (pos.p->next) ++pos;
+		while (pos.p->next) pos.p = pos.p->next;
 		pos.p->next = saved;
 	}
 
@@ -594,8 +594,8 @@ public:
 	{
 		basic_node * saved = pos.p->next;
 		pos.p->next = other.root.next;
-		while (pos.p->next) ++pos;
 		other.root.next = nullptr;
+		while (pos.p->next) pos.p = pos.p->next;
 		pos.p->next = saved;
 	}
 
@@ -614,8 +614,8 @@ public:
 	{
 		basic_node * saved = pos.p->next;
 		pos.p->next = first.p->next;
-		while (pos.p->next != last.p) ++pos;
-		first.p->next = pos.p->next;
+		first.p->next = last.p;
+		while (pos.p->next != last.p) pos.p = pos.p->next;
 		pos.p->next = saved;
 	}
 
@@ -681,52 +681,130 @@ auto operator==(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
-	return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+	auto left = lhs.begin();
+	auto right = rhs.begin();
+	auto end = lhs.end();
+	for (;;)
+	{
+		if (left == end)
+		{
+			return right == end;
+		}
+		if (right == end)
+		{
+			return false;
+		}
+		if (!(*left++ == *right++)) return false;
+	}
 }
 template<class T>
 auto operator!=(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
-	return !operator==(lhs, rhs);
+	auto left = lhs.begin();
+	auto right = rhs.begin();
+	auto end = lhs.end();
+	for (;;)
+	{
+		if (left == end)
+		{
+			return right != end;
+		}
+		if (right == end)
+		{
+			return true;
+		}
+		if (!(*left++ == *right++)) return true;
+	}
 }
 template<class T>
 auto operator<(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
-	return std::lexicographical_compare(
-		lhs.begin(),
-		lhs.end(),
-		rhs.begin(),
-		rhs.end(),
-		std::less{});
+	auto left = lhs.begin();
+	auto right = rhs.begin();
+	auto end = lhs.end();
+	for (;;)
+	{
+		if (left == end)
+		{
+			return right != end;
+		}
+		if (right == end)
+		{
+			return false;
+		}
+		if (*left < *right) return true;
+		if (*right++ < *left++) return false;
+	}
 }
 template<class T>
 auto operator>=(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
-	return !operator<(lhs, rhs);
+	auto left = lhs.begin();
+	auto right = rhs.begin();
+	auto end = lhs.end();
+	for (;;)
+	{
+		if (left == end)
+		{
+			return right == end;
+		}
+		if (right == end)
+		{
+			return true;
+		}
+		if (*left < *right) return false;
+		if (*right++ < *left++) return true;
+	}
 }
 template<class T>
 auto operator>(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
-	return std::lexicographical_compare(
-		lhs.begin(),
-		lhs.end(),
-		rhs.begin(),
-		rhs.end(),
-		std::greater{});
+	auto left = lhs.begin();
+	auto right = rhs.begin();
+	auto end = lhs.end();
+	for (;;)
+	{
+		if (right == end)
+		{
+			return left != end;
+		}
+		if (left == end)
+		{
+			return false;
+		}
+		if (*right < *left) return true;
+		if (*left++ < *right++) return false;
+	}
 }
 template<class T>
 auto operator<=(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
-	return !operator>(lhs, rhs);
+	auto left = lhs.begin();
+	auto right = rhs.begin();
+	auto end = lhs.end();
+	for (;;)
+	{
+		if (right == end)
+		{
+			return left == end;
+		}
+		if (left == end)
+		{
+			return true;
+		}
+		if (*right < *left) return false;
+		if (*left++ < *right++) return true;
+	}
 }
 
 #endif
