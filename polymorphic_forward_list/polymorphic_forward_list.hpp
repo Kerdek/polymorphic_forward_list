@@ -490,8 +490,8 @@ public:
 			{
 				basic_node * temp = pivot->next;
 				pivot->next = other.root.next;
-				other.root.next = other.root.next->next;
-				pivot->next->next = temp;
+				other.root.next = pivot->next->next;
+				pivot->next->next = temp; // that's a rotate
 			}
 		}
 		if (other.root.next)
@@ -514,7 +514,7 @@ public:
 			{
 				basic_node * temp = pivot->next;
 				pivot->next = other.root.next;
-				other.root.next = other.root.next->next;
+				other.root.next = pivot->next->next;
 				pivot->next->next = temp;
 			}
 		}
@@ -539,7 +539,7 @@ public:
 			{
 				basic_node * temp = pivot->next;
 				pivot->next = other.root.next;
-				other.root.next = other.root.next->next;
+				other.root.next = pivot->next->next;
 				pivot->next->next = temp;
 			}
 		}
@@ -564,7 +564,7 @@ public:
 			{
 				basic_node * temp = pivot->next;
 				pivot->next = other.root.next;
-				other.root.next = other.root.next->next;
+				other.root.next = pivot->next->next;
 				pivot->next->next = temp;
 			}
 		}
@@ -591,8 +591,8 @@ public:
 	{
 		basic_node * pivot = pos.p->next;
 		pos.p->next = other.root.next;
-		other.root.next = nullptr;
 		while (pos.p->next) ++pos;
+		other.root.next = nullptr;
 		pos.p->next = pivot;
 	}
 
@@ -600,7 +600,7 @@ public:
 	{
 		basic_node * pivot = pos.p->next;
 		pos.p->next = it.p->next;
-		it.p->next = it.p->next->next;
+		it.p->next = pos.p->next->next;
 		pos.p->next->next = pivot;
 	}
 
@@ -654,6 +654,19 @@ public:
 			}
 		}
 		return removed_count;
+	}
+
+	void reverse() noexcept
+	{
+		link reverse_root = nullptr;
+		while (root.next)
+		{
+			basic_node * temp = reverse_root.next;
+			reverse_root.next = root.next;
+			root.next = reverse_root.next->next;
+			reverse_root.next->next = temp;
+		}
+		root.next = reverse_root.next;
 	}
 
 private:
