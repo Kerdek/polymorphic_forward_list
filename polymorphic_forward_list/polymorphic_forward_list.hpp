@@ -189,18 +189,21 @@ public:
 			p{ p }
 		{ }
 	};
+	
+	polymorphic_forward_list(polymorphic_forward_list const & other) = delete;
+	auto operator=(polymorphic_forward_list const & other)
+		-> polymorphic_forward_list & = delete;
 
 	polymorphic_forward_list() noexcept :
 		root{ nullptr }
 	{}
-	polymorphic_forward_list(polymorphic_forward_list const & other) = delete;
+
 	polymorphic_forward_list(polymorphic_forward_list && other) noexcept :
 		root{ other.root.next }
 	{
 		other.root.next = nullptr;
 	}
-	auto operator=(polymorphic_forward_list const & other)
-		-> polymorphic_forward_list & = delete;
+
 	auto operator=(polymorphic_forward_list && other) noexcept
 		-> polymorphic_forward_list &
 	{
@@ -394,9 +397,9 @@ public:
 			}
 			throw;
 		}
-		link * temp = pos.p->next;
+		link * saved = pos.p->next;
 		pos.p->next = splice_root.next;
-		splice_before_end.p->next = temp;
+		splice_before_end.p->next = saved;
 		return splice_before_end;
 	}
 
@@ -426,9 +429,9 @@ public:
 			}
 			throw;
 		}
-		link * temp = pos.p->next;
+		link * saved = pos.p->next;
 		pos.p->next = splice_root.next;
-		splice_before_end.p->next = temp;
+		splice_before_end.p->next = saved;
 		return splice_before_end;
 	}
 
@@ -488,17 +491,17 @@ public:
 		{
 			if (other.root.next->ref < pivot->next->ref)
 			{
-				basic_node * temp = pivot->next;
+				basic_node * saved = pivot->next;
 				pivot->next = other.root.next;
 				other.root.next = pivot->next->next;
-				pivot->next->next = temp; // that's a rotate
+				pivot->next->next = saved; // that's a rotate
 			}
 		}
 		if (other.root.next)
 		{
-			basic_node * temp = other.root.next;
+			basic_node * saved = other.root.next;
 			other.root.next = pivot->next;
-			pivot->next = temp;
+			pivot->next = saved;
 		}
 	}
 
@@ -512,17 +515,17 @@ public:
 		{
 			if (other.root.next->ref < pivot->next->ref)
 			{
-				basic_node * temp = pivot->next;
+				basic_node * saved = pivot->next;
 				pivot->next = other.root.next;
 				other.root.next = pivot->next->next;
-				pivot->next->next = temp;
+				pivot->next->next = saved;
 			}
 		}
 		if (other.root.next)
 		{
-			basic_node * temp = other.root.next;
+			basic_node * saved = other.root.next;
 			other.root.next = pivot->next;
-			pivot->next = temp;
+			pivot->next = saved;
 		}
 	}
 
@@ -545,9 +548,9 @@ public:
 		}
 		if (other.root.next)
 		{
-			basic_node * temp = other.root.next;
+			basic_node * saved = other.root.next;
 			other.root.next = pivot->next;
-			pivot->next = temp;
+			pivot->next = saved;
 		}
 	}
 
@@ -570,38 +573,38 @@ public:
 		}
 		if (other.root.next)
 		{
-			basic_node * temp = other.root.next;
+			basic_node * saved = other.root.next;
 			other.root.next = pivot->next;
-			pivot->next = temp;
+			pivot->next = saved;
 		}
 	}
 
 	void splice_after(const_iterator pos, polymorphic_forward_list & other)
 		noexcept
 	{
-		basic_node * pivot = pos.p->next;
+		basic_node * saved = pos.p->next;
 		pos.p->next = other.root.next;
 		other.root.next = nullptr;
 		while (pos.p->next) ++pos;
-		pos.p->next = pivot;
+		pos.p->next = saved;
 	}
 
 	void splice_after(const_iterator pos, polymorphic_forward_list && other)
 		noexcept
 	{
-		basic_node * pivot = pos.p->next;
+		basic_node * saved = pos.p->next;
 		pos.p->next = other.root.next;
 		while (pos.p->next) ++pos;
 		other.root.next = nullptr;
-		pos.p->next = pivot;
+		pos.p->next = saved;
 	}
 
 	void splice_after(const_iterator pos, const_iterator it) noexcept
 	{
-		basic_node * pivot = pos.p->next;
+		basic_node * saved = pos.p->next;
 		pos.p->next = it.p->next;
 		it.p->next = pos.p->next->next;
-		pos.p->next->next = pivot;
+		pos.p->next->next = saved;
 	}
 
 	void splice_after(
@@ -609,18 +612,18 @@ public:
 		const_iterator first,
 		const_iterator last) noexcept
 	{
-		basic_node * pivot = pos.p->next;
+		basic_node * saved = pos.p->next;
 		pos.p->next = first.p->next;
 		while (pos.p->next != last.p) ++pos;
 		first.p->next = pos.p->next;
-		pos.p->next = pivot;
+		pos.p->next = saved;
 	}
 
 	void swap(polymorphic_forward_list & other) noexcept
 	{
-		basic_node * temp = root.next;
+		basic_node * saved = root.next;
 		root.next = other.root.next;
-		other.root.next = temp;
+		other.root.next = saved;
 	}
 
 	auto remove(const_reference value) -> size_type
@@ -661,10 +664,10 @@ public:
 		link reverse_root = nullptr;
 		while (root.next)
 		{
-			basic_node * temp = reverse_root.next;
+			basic_node * saved = reverse_root.next;
 			reverse_root.next = root.next;
 			root.next = reverse_root.next->next;
-			reverse_root.next->next = temp;
+			reverse_root.next->next = saved;
 		}
 		root.next = reverse_root.next;
 	}
