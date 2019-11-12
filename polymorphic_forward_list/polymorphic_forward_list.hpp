@@ -675,7 +675,7 @@ private:
 template<class T>
 PFL_NODISCARD auto operator==(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept -> bool
+	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() == *rhs.begin())) -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -696,7 +696,7 @@ PFL_NODISCARD auto operator==(
 template<class T>
 PFL_NODISCARD auto operator!=(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept -> bool
+	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() == *rhs.begin())) -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -717,7 +717,7 @@ PFL_NODISCARD auto operator!=(
 template<class T>
 PFL_NODISCARD auto operator<(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept -> bool
+	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() < *rhs.begin()) && noexcept(*rhs.begin() < *lhs.begin())) -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -739,7 +739,7 @@ PFL_NODISCARD auto operator<(
 template<class T>
 PFL_NODISCARD auto operator>=(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept -> bool
+	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() < *rhs.begin()) && noexcept(*rhs.begin() < *lhs.begin())) -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -761,7 +761,7 @@ PFL_NODISCARD auto operator>=(
 template<class T>
 PFL_NODISCARD auto operator>(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept -> bool
+	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() < *rhs.begin()) && noexcept(*rhs.begin() < *lhs.begin())) -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -783,7 +783,7 @@ PFL_NODISCARD auto operator>(
 template<class T>
 PFL_NODISCARD auto operator<=(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept -> bool
+	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() < *rhs.begin()) && noexcept(*rhs.begin() < *lhs.begin())) -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
