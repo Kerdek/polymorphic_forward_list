@@ -1,109 +1,13 @@
 #ifndef POLYMORPHIC_FORWARD_LIST_HPP
 #define POLYMORPHIC_FORWARD_LIST_HPP
 
-#include <iterator>	
+#if __cplusplus == 201703L
+#define PFL_NODISCARD [[nodiscard]]
+#else
+#define PFL_NODISCARD
+#endif
 
-#define PFL_ERASE(a)													\
-	basic_node * trash = a;												\
-	a = trash->next;													\
-	delete trash;
-
-#define PFL_SPLICE(a, b)												\
-	basic_node * saved = a;												\
-	a = b;																\
-	b = a->next;														\
-	a->next = saved;
-
-#define PFL_SPLICE_WHILE(a, b, c, condition)							\
-	basic_node * saved = a->next;										\
-	a->next = b;														\
-	b = c;																\
-	while (condition) a = a->next;										\
-	a->next = saved;
-
-#define PFL_SWAP(a, b)													\
-	basic_node * saved = a;												\
-	a = b;																\
-	b = saved;
-
-#define PFL_MERGE(op)													\
-	if (this == &other) return;											\
-	if (!other.root.next) return;										\
-	link * pivot = &root;												\
-	for (; pivot->next && other.root.next; pivot = pivot->next)			\
-	{																	\
-		if (op)															\
-		{																\
-			PFL_SPLICE(pivot->next, other.root.next);					\
-		}																\
-	}																	\
-	if (other.root.next)												\
-	{																	\
-		PFL_SWAP(other.root.next, pivot->next);							\
-	}
-
-#define PFL_FOR_ALL(at, op)												\
-	while(at)															\
-	{																	\
-		op;																\
-	}
-
-#define PFL_ASSIGN(op, val)												\
-	using node_elem_type =												\
-		std::remove_const_t<std::remove_reference_t<decltype(val)>>;	\
-	link assign_root = nullptr;											\
-	link * assign_before_end = &assign_root;							\
-	try																	\
-	{																	\
-		op																\
-		{																\
-			assign_before_end =											\
-				new node<node_elem_type>(*assign_before_end, val);		\
-		}																\
-	}																	\
-	catch (...)															\
-	{																	\
-		PFL_FOR_ALL(assign_root.next, PFL_ERASE(assign_root.next))		\
-		throw;															\
-	}																	\
-	while (root.next)													\
-	{																	\
-		PFL_ERASE(root.next);											\
-	}																	\
-	root.next = assign_root.next;
-
-#define PFL_INSERT(op, val)												\
-	using node_elem_type =												\
-		std::remove_const_t<std::remove_reference_t<decltype(val)>>;	\
-	link insert_root;													\
-	link * insert_before_end = &insert_root;							\
-	try																	\
-	{																	\
-		op																\
-		{																\
-			insert_before_end											\
-				= new node<node_elem_type>(insert_before_end, val);		\
-		}																\
-	}																	\
-	catch (...)															\
-	{																	\
-		PFL_FOR_ALL(insert_root.next, PFL_ERASE(insert_root.next))		\
-		throw;															\
-	}																	\
-	PFL_SWAP(pos.p->next, insert_root.next);							\
-	return insert_before_end;
-
-#define PFL_REMOVE(op)													\
-	size_type removed_count = 0;										\
-	for (link * pivot = &root; pivot->next; pivot = pivot->next)		\
-	{																	\
-		if (op)															\
-		{																\
-			PFL_ERASE(pivot->next);										\
-			removed_count++;											\
-		}																\
-	}																	\
-	return removed_count;
+#include <iterator>
 
 template<class Elem_Base>
 class polymorphic_forward_list
@@ -118,6 +22,15 @@ public:
 	using const_pointer = value_type const *;
 
 private:
+
+	//--------------------------------------------------------------------------
+	//
+	//
+	// Node Types
+	//
+	//
+	//--------------------------------------------------------------------------
+
 	struct basic_node;
 
 	struct link
@@ -125,8 +38,8 @@ private:
 		link() = delete;
 		link(link const &) = delete;
 		link(link &&) = delete;
-		link & operator=(link const &) = delete;
-		link & operator=(link &&) = delete;
+		auto operator=(link const &)->link & = delete;
+		auto operator=(link &&)->link & = delete;
 		~link() = default;
 
 		link(basic_node * next) noexcept :
@@ -174,6 +87,14 @@ private:
 	};
 
 public:
+
+	//--------------------------------------------------------------------------
+	//
+	//
+	// Iterator Types
+	//
+	//
+	//--------------------------------------------------------------------------
 
 	class iterator;
 	class const_iterator;
@@ -252,7 +173,7 @@ public:
 		const_iterator() noexcept = default;
 		const_iterator(const_iterator const &) noexcept = default;
 		auto operator=(const_iterator const &) noexcept
-			-> const_iterator & = default;
+			->const_iterator & = default;
 
 		auto operator*() const noexcept -> reference
 		{
@@ -291,10 +212,34 @@ public:
 			p{ p }
 		{ }
 	};
-	
+
+	//--------------------------------------------------------------------------
+	//
+	//
+	// Member Functions
+	//
+	//
+	//--------------------------------------------------------------------------
+
+#define PFL_POP(a)														\
+	basic_node * const trash = a;										\
+	a = trash->next;													\
+	delete trash;
+
+#define PFL_SWAP(a, b)													\
+	basic_node * const saved = a;										\
+	a = b;																\
+	b = saved;
+
+	//--------------------------------------------------------------------------
+	//
+	// Constructors / Assignment Operators
+	//
+	//--------------------------------------------------------------------------
+
 	polymorphic_forward_list(polymorphic_forward_list const & other) = delete;
 	auto operator=(polymorphic_forward_list const & other)
-		-> polymorphic_forward_list & = delete;
+		->polymorphic_forward_list & = delete;
 
 	polymorphic_forward_list() noexcept :
 		root{ nullptr }
@@ -314,8 +259,44 @@ public:
 
 	~polymorphic_forward_list() noexcept
 	{
-		PFL_FOR_ALL(root.next, PFL_ERASE(root.next));
+		while (root.next)
+		{
+			PFL_POP(root.next);
+		}
 	}
+
+	//--------------------------------------------------------------------------
+	//
+	// Assignments
+	//
+	//--------------------------------------------------------------------------
+
+#define PFL_ASSIGN(op, val)												\
+	using node_elem_type =												\
+		std::remove_const_t<std::remove_reference_t<decltype(val)>>;	\
+	link assign_root = nullptr;											\
+	link * assign_before_end = &assign_root;							\
+	try																	\
+	{																	\
+		op																\
+		{																\
+			assign_before_end =											\
+				new node<node_elem_type>(*assign_before_end, val);		\
+		}																\
+	}																	\
+	catch (...)															\
+	{																	\
+		while(assign_root.next)											\
+		{																\
+			PFL_POP(assign_root.next);									\
+		}																\
+		throw;															\
+	}																	\
+	while (root.next)													\
+	{																	\
+		PFL_POP(root.next);												\
+	}																	\
+	root.next = assign_root.next;
 
 	void assign(size_type count, const_reference value)
 	{
@@ -329,68 +310,125 @@ public:
 		PFL_ASSIGN(while (first != last), *first++);
 	}
 
-	auto front() noexcept -> reference
+#undef PFL_ASSIGN
+
+	//--------------------------------------------------------------------------
+	//
+	// Element Access
+	//
+	//--------------------------------------------------------------------------
+
+	PFL_NODISCARD auto front() noexcept -> reference
 	{
 		return root.next->ref;
 	}
-	auto front() const noexcept -> const_reference
+	PFL_NODISCARD auto front() const noexcept -> const_reference
 	{
 		return root.next->ref;
 	}
 
-	auto before_begin() noexcept -> iterator
+	//--------------------------------------------------------------------------
+	//
+	// Iterators
+	//
+	//--------------------------------------------------------------------------
+
+	PFL_NODISCARD auto before_begin() noexcept -> iterator
 	{
 		return &root;
 	}
-	auto begin() noexcept -> iterator
+	PFL_NODISCARD auto begin() noexcept -> iterator
 	{
 		return root.next;
 	}
-	auto end() noexcept -> iterator
+	PFL_NODISCARD auto end() noexcept -> iterator
 	{
 		return nullptr;
 	}
 
-	auto before_begin() const noexcept -> const_iterator
+	PFL_NODISCARD auto before_begin() const noexcept -> const_iterator
 	{
 		return const_cast<link *>(&root);
 	}
-	auto begin() const noexcept -> const_iterator
+	PFL_NODISCARD auto begin() const noexcept -> const_iterator
 	{
 		return root.next;
 	}
-	auto end() const noexcept -> const_iterator
+	PFL_NODISCARD auto end() const noexcept -> const_iterator
 	{
 		return nullptr;
 	}
 
-	auto cbefore_begin() const noexcept -> const_iterator
+	PFL_NODISCARD auto cbefore_begin() const noexcept -> const_iterator
 	{
 		return const_cast<link *>(&root);
 	}
-	auto cbegin() const noexcept -> const_iterator
+	PFL_NODISCARD auto cbegin() const noexcept -> const_iterator
 	{
 		return root.next;
 	}
-	auto cend() const noexcept -> const_iterator
+	PFL_NODISCARD auto cend() const noexcept -> const_iterator
 	{
 		return nullptr;
 	}
 
-	[[nodiscard]] auto empty() const noexcept -> bool
+	//--------------------------------------------------------------------------
+	//
+	// Capacity
+	//
+	//--------------------------------------------------------------------------
+
+	PFL_NODISCARD auto empty() const noexcept -> bool
 	{
 		return !root.next;
 	}
 
-	auto max_size() const noexcept -> size_type
+	PFL_NODISCARD auto max_size() const noexcept -> size_type
 	{
 		return std::numeric_limits<size_type>::max();
 	}
 
+	//--------------------------------------------------------------------------
+	//
+	// Modifiers
+	//
+	//--------------------------------------------------------------------------
+	
 	void clear() noexcept
 	{
-		PFL_FOR_ALL(root.next, PFL_ERASE(root.next));
+		while (root.next)
+		{
+			PFL_POP(root.next);
+		}
 	}
+
+	//--------------------------------------------------------------------------
+	// Insertions
+	//--------------------------------------------------------------------------
+
+#define PFL_INSERT(op, val)												\
+	using node_elem_type =												\
+		std::remove_const_t<std::remove_reference_t<decltype(val)>>;	\
+	link insert_root;													\
+	link * insert_before_end = &insert_root;							\
+	try																	\
+	{																	\
+		op																\
+		{																\
+			insert_before_end											\
+				= new node<node_elem_type>(insert_before_end, val);		\
+		}																\
+	}																	\
+	catch (...)															\
+	{																	\
+		while(insert_root.next)											\
+		{																\
+			PFL_POP(insert_root.next);									\
+		}																\
+		throw;															\
+	}																	\
+	PFL_SWAP(pos.p->next, insert_root.next);							\
+	return insert_before_end;
 
 	template<class Elem_Derived>
 	auto insert_after(const_iterator pos, Elem_Derived const & value)
@@ -421,6 +459,12 @@ public:
 		PFL_INSERT(while (first != last), *first++);
 	}
 
+#undef PFL_INSERT
+
+	//--------------------------------------------------------------------------
+	// Erasures
+	//--------------------------------------------------------------------------
+
 	template<class Elem_Derived = Elem_Base, class ... Args>
 	auto emplace_after(const_iterator pos, Args && ... args) -> iterator
 	{
@@ -429,16 +473,23 @@ public:
 
 	auto erase_after(const_iterator pos) noexcept
 	{
-		PFL_ERASE(pos.p->next)
-		return pos.p->next;
+		PFL_POP(pos.p->next)
+			return pos.p->next;
 	}
 
 	auto erase_after(const_iterator first, const_iterator last) noexcept
 		-> iterator
 	{
-		PFL_FOR_ALL((first.p->next) != last.p, PFL_ERASE(first.p->next));
+		while ((first.p->next) != last.p)
+		{
+			PFL_POP(first.p->next);
+		}
 		return last.p;
 	}
+
+	//--------------------------------------------------------------------------
+	// Push / Pop / Emplace / Swap
+	//--------------------------------------------------------------------------
 
 	template<class Elem_Derived>
 	void push_front(Elem_Derived const & value)
@@ -455,9 +506,51 @@ public:
 	template<class Elem_Derived = Elem_Base, class ... Args>
 	auto emplace_front(Args && ... args) -> reference
 	{
-		basic_node * new_node =
+		basic_node * const new_node =
 			new node<Elem_Derived>(root, std::forward<Args>(args) ...);
 		return new_node->ref;
+	}
+
+	void pop_front()
+	{
+		PFL_POP(root.next);
+	}
+				
+	void swap(polymorphic_forward_list & other) noexcept
+	{
+		PFL_SWAP(root.next, other.root.next);
+	}
+
+	//--------------------------------------------------------------------------
+	//
+	// Operations
+	//
+	//--------------------------------------------------------------------------
+	
+#define PFL_SPLICE_ONE(a, b)											\
+	basic_node * const saved = a;										\
+	a = b;																\
+	b = a->next;														\
+	a->next = saved;
+
+	//--------------------------------------------------------------------------
+	// Merges
+	//--------------------------------------------------------------------------
+		
+#define PFL_MERGE(op)													\
+	if (this == &other) return;											\
+	if (!other.root.next) return;										\
+	link * pivot = &root;												\
+	for (; pivot->next && other.root.next; pivot = pivot->next)			\
+	{																	\
+		if (op)															\
+		{																\
+			PFL_SPLICE_ONE(pivot->next, other.root.next);				\
+		}																\
+	}																	\
+	if (other.root.next)												\
+	{																	\
+		PFL_SWAP(other.root.next, pivot->next);							\
 	}
 
 	void merge(polymorphic_forward_list & other)
@@ -486,35 +579,61 @@ public:
 		PFL_MERGE(comp(other.root.next->ref, pivot->next->ref));
 	}
 
+#undef PFL_MERGE
+
+	//--------------------------------------------------------------------------
+	// Splices
+	//--------------------------------------------------------------------------
+
+#define PFL_SPLICE(a, b, c, condition)									\
+	basic_node * const saved = a->next;									\
+	a->next = b;														\
+	b = c;																\
+	while (condition) a = a->next;										\
+	a->next = saved;
+	
 	void splice_after(const_iterator pos, polymorphic_forward_list & other)
 		noexcept
 	{
-		PFL_SPLICE_WHILE(pos.p, other.root.next, nullptr, pos.p->next);
+		PFL_SPLICE(pos.p, other.root.next, nullptr, pos.p->next);
 	}
 
 	void splice_after(const_iterator pos, polymorphic_forward_list && other)
 		noexcept
 	{
-		PFL_SPLICE_WHILE(pos.p, other.root.next, nullptr, pos.p->next);
+		PFL_SPLICE(pos.p, other.root.next, nullptr, pos.p->next);
 	}
 
 	void splice_after(const_iterator pos, const_iterator it) noexcept
 	{
-		PFL_SPLICE(pos.p->next, it.p->next);
+		PFL_SPLICE_ONE(pos.p->next, it.p->next);
 	}
-
+	
 	void splice_after(
 		const_iterator pos,
 		const_iterator first,
 		const_iterator last) noexcept
 	{
-		PFL_SPLICE_WHILE(pos.p, first.p->next, last.p, pos.p->next != last.p);
+		PFL_SPLICE(pos.p, first.p->next, last.p, pos.p->next != last.p);
 	}
+	
+#undef PFL_SPLICE
 
-	void swap(polymorphic_forward_list & other) noexcept
-	{
-		PFL_SWAP(root.next, other.root.next);
-	}
+	//--------------------------------------------------------------------------
+	// Removals
+	//--------------------------------------------------------------------------
+
+#define PFL_REMOVE(op)													\
+	size_type removed_count = 0;										\
+	for (link * pivot = &root; pivot->next; pivot = pivot->next)		\
+	{																	\
+		if (op)															\
+		{																\
+			PFL_POP(pivot->next);										\
+			removed_count++;											\
+		}																\
+	}																	\
+	return removed_count;
 
 	auto remove(const_reference value) -> size_type
 	{
@@ -530,22 +649,40 @@ public:
 	void reverse() noexcept
 	{
 		link reverse_root = nullptr;
-		PFL_FOR_ALL(root.next, PFL_SPLICE(reverse_root.next, root.next));
+		while (root.next)
+		{
+			PFL_SPLICE_ONE(reverse_root.next, root.next);
+		}
 		root.next = reverse_root.next;
 	}
+
+#undef PFL_REMOVE
+
+#undef PFL_SPLICE_ONE
+
+#undef PFL_POP
+#undef PFL_SWAP
 
 private:
 	link root;
 };
 
+//------------------------------------------------------------------------------
+//
+//
+// Non-member Functions
+//
+//
+//------------------------------------------------------------------------------
+
 template<class T>
-auto operator==(
+PFL_NODISCARD auto operator==(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
-	auto end = lhs.end();
+	auto const end = lhs.end();
 	for (;;)
 	{
 		if (left == end)
@@ -560,13 +697,13 @@ auto operator==(
 	}
 }
 template<class T>
-auto operator!=(
+PFL_NODISCARD auto operator!=(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
-	auto end = lhs.end();
+	auto const end = lhs.end();
 	for (;;)
 	{
 		if (left == end)
@@ -581,13 +718,13 @@ auto operator!=(
 	}
 }
 template<class T>
-auto operator<(
+PFL_NODISCARD auto operator<(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
-	auto end = lhs.end();
+	auto const end = lhs.end();
 	for (;;)
 	{
 		if (left == end)
@@ -603,13 +740,13 @@ auto operator<(
 	}
 }
 template<class T>
-auto operator>=(
+PFL_NODISCARD auto operator>=(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
-	auto end = lhs.end();
+	auto const end = lhs.end();
 	for (;;)
 	{
 		if (left == end)
@@ -625,13 +762,13 @@ auto operator>=(
 	}
 }
 template<class T>
-auto operator>(
+PFL_NODISCARD auto operator>(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
-	auto end = lhs.end();
+	auto const end = lhs.end();
 	for (;;)
 	{
 		if (right == end)
@@ -647,13 +784,13 @@ auto operator>(
 	}
 }
 template<class T>
-auto operator<=(
+PFL_NODISCARD auto operator<=(
 	polymorphic_forward_list<T> const & lhs,
 	polymorphic_forward_list<T> const & rhs) noexcept -> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
-	auto end = lhs.end();
+	auto const end = lhs.end();
 	for (;;)
 	{
 		if (right == end)
@@ -669,14 +806,6 @@ auto operator<=(
 	}
 }
 
-#undef PFL_ERASE
-#undef PFL_SPLICE
-#undef PFL_SPLICE_WHILE
-#undef PFL_SWAP
-#undef PFL_MERGE
-#undef PFL_FOR_ALL
-#undef PFL_ASSIGN
-#undef PFL_INSERT
-#undef PFL_REMOVE
+#undef PFL_NODISCARD
 
 #endif
