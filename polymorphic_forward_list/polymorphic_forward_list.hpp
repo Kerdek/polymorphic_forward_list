@@ -1,13 +1,13 @@
 #ifndef POLYMORPHIC_FORWARD_LIST_HPP
 #define POLYMORPHIC_FORWARD_LIST_HPP
 
+#include <iterator>
+
 #if __cplusplus == 201703L
 #define PFL_NODISCARD [[nodiscard]]
 #else
 #define PFL_NODISCARD
 #endif
-
-#include <iterator>
 
 template<class Elem_Base>
 class polymorphic_forward_list
@@ -272,8 +272,6 @@ public:
 	//--------------------------------------------------------------------------
 
 #define PFL_ASSIGN(op, val)												\
-	using node_elem_type =												\
-		std::remove_const_t<std::remove_reference_t<decltype(val)>>;	\
 	link assign_root = nullptr;											\
 	link * assign_before_end = &assign_root;							\
 	try																	\
@@ -281,7 +279,7 @@ public:
 		op																\
 		{																\
 			assign_before_end =											\
-				new node<node_elem_type>(*assign_before_end, val);		\
+				new node<Elem_Derived>(*assign_before_end, val);		\
 		}																\
 	}																	\
 	catch (...)															\
@@ -298,12 +296,13 @@ public:
 	}																	\
 	root.next = assign_root.next;
 
-	void assign(size_type count, const_reference value)
+	template<class Elem_Derived>
+	void assign(size_type count, Elem_Derived const & value)
 	{
 		PFL_ASSIGN(for (size_type i = 0; i < count; i++), value);
 	}
 
-	template<class InputIt>
+	template<class InputIt, class Elem_Derived = typename std::iterator_traits<InputIt>::value_type>
 	auto assign(InputIt first, InputIt last)
 		-> std::enable_if_t<!std::is_integral_v<InputIt>>
 	{
@@ -407,16 +406,14 @@ public:
 	//--------------------------------------------------------------------------
 
 #define PFL_INSERT(op, val)												\
-	using node_elem_type =												\
-		std::remove_const_t<std::remove_reference_t<decltype(val)>>;	\
-	link insert_root;													\
+	link insert_root = nullptr;											\
 	link * insert_before_end = &insert_root;							\
 	try																	\
 	{																	\
 		op																\
 		{																\
 			insert_before_end											\
-				= new node<node_elem_type>(insert_before_end, val);		\
+				= new node<Elem_Derived>(*insert_before_end, val);		\
 		}																\
 	}																	\
 	catch (...)															\
@@ -452,7 +449,7 @@ public:
 		PFL_INSERT(for (size_type i = 0; i < count; i++), value);
 	}
 
-	template<class InputIt>
+	template<class InputIt, class Elem_Derived = typename std::iterator_traits<InputIt>::value_type>
 	auto insert_after(const_iterator pos, InputIt first, InputIt last)
 		-> std::enable_if_t<!std::is_integral_v<InputIt>, iterator>
 	{
