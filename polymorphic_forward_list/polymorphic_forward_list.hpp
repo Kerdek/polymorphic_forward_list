@@ -3,7 +3,7 @@
 
 #include <iterator>
 
-#if __cplusplus == 201703L
+#if __has_cpp_attribute(nodiscard)
 #define PFL_NODISCARD [[nodiscard]]
 #else
 #define PFL_NODISCARD
@@ -254,7 +254,12 @@ public:
 	auto operator=(polymorphic_forward_list && other) noexcept
 		-> polymorphic_forward_list &
 	{
-		PFL_SWAP(root.next, other.root.next);
+		auto other_old = other.root.next;
+		other.root.next = nullptr;
+		auto old = root.next;
+		root.next = other_old;
+		if (old) delete old;
+		return *this;
 	}
 
 	~polymorphic_forward_list() noexcept
@@ -295,6 +300,31 @@ public:
 		PFL_POP(root.next);												\
 	}																	\
 	root.next = assign_root.next;
+
+	template<class InputIt, class Elem_Derived = typename std::iterator_traits<InputIt>::value_type, typename = std::enable_if_t<!std::is_integral_v<InputIt>>>
+	polymorphic_forward_list(InputIt first, InputIt last) :
+		root{ nullptr }
+	{
+		link assign_root = nullptr;
+		link * assign_before_end = &assign_root;
+		try
+		{
+			while (first != last)
+			{
+				assign_before_end =
+					new node<Elem_Derived>(*assign_before_end, *first++);
+			}
+		}
+		catch (...)
+		{
+			while (assign_root.next)
+			{
+				PFL_POP(assign_root.next);
+			}
+			throw;
+		}
+		root.next = assign_root.next;
+	}
 
 	template<class Elem_Derived>
 	void assign(size_type count, Elem_Derived const & value)
@@ -392,7 +422,7 @@ public:
 	// Modifiers
 	//
 	//--------------------------------------------------------------------------
-	
+
 	void clear() noexcept
 	{
 		while (root.next)
@@ -512,7 +542,7 @@ public:
 	{
 		PFL_POP(root.next);
 	}
-				
+
 	void swap(polymorphic_forward_list & other) noexcept
 	{
 		PFL_SWAP(root.next, other.root.next);
@@ -523,7 +553,7 @@ public:
 	// Operations
 	//
 	//--------------------------------------------------------------------------
-	
+
 #define PFL_SPLICE_ONE(a, b)											\
 	basic_node * const saved = a;										\
 	a = b;																\
@@ -533,7 +563,7 @@ public:
 	//--------------------------------------------------------------------------
 	// Merges
 	//--------------------------------------------------------------------------
-		
+
 #define PFL_MERGE(op)													\
 	if (this == &other) return;											\
 	if (!other.root.next) return;										\
@@ -588,7 +618,7 @@ public:
 	b = c;																\
 	while (condition) a = a->next;										\
 	a->next = saved;
-	
+
 	void splice_after(const_iterator pos, polymorphic_forward_list & other)
 		noexcept
 	{
@@ -605,7 +635,7 @@ public:
 	{
 		PFL_SPLICE_ONE(pos.p->next, it.p->next);
 	}
-	
+
 	void splice_after(
 		const_iterator pos,
 		const_iterator first,
@@ -613,7 +643,7 @@ public:
 	{
 		PFL_SPLICE(pos.p, first.p->next, last.p, pos.p->next != last.p);
 	}
-	
+
 #undef PFL_SPLICE
 
 	//--------------------------------------------------------------------------
@@ -622,12 +652,16 @@ public:
 
 #define PFL_REMOVE(op)													\
 	size_type removed_count = 0;										\
-	for (link * pivot = &root; pivot->next; pivot = pivot->next)		\
+	for (link * pivot = &root; pivot->next;)							\
 	{																	\
 		if (op)															\
 		{																\
 			PFL_POP(pivot->next);										\
 			removed_count++;											\
+		}																\
+		else															\
+		{																\
+			pivot = pivot->next;										\
 		}																\
 	}																	\
 	return removed_count;
