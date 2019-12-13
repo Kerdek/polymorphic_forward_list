@@ -29,7 +29,7 @@ class Control
 
 `polymorphic_forward_list<T>` has nodes which own objects of various related types as subobjects. This is in contrast to a
 `std::foward_list<std::unique_ptr<T>>` which owns objects through a pointer. This strategy eliminates an
-indirection. As a side-effect, this strategy also allows owned objects to be destroyed directly. That is, an element need is never
+indirection. As a side-effect, this strategy also allows owned objects to be destroyed directly. That is, an element is never
 destroyed through a base pointer, and an object of type deriving from `T` need not have a virtual destructor in order to be an element.
 
 An object of type `polymorphic_forward_list<T>` contains a single subobject of type `polymorphic_forward_list<T>::link`.
