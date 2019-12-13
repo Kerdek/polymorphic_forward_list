@@ -1,3 +1,10 @@
+/* Copyright (C) 2019 Theodoric E. Stier - All Rights Reserved
+ * You may use, distribute and modify this code under the
+ * terms of the MIT license.
+ *
+ * INFO: This file is intended to be viewed using a horizontal tab width of 4.
+ */
+
 #ifndef POLYMORPHIC_FORWARD_LIST_HPP
 #define POLYMORPHIC_FORWARD_LIST_HPP
 
@@ -301,7 +308,10 @@ public:
 	}																	\
 	root.next = assign_root.next;
 
-	template<class InputIt, class Elem_Derived = typename std::iterator_traits<InputIt>::value_type, typename = std::enable_if_t<!std::is_integral_v<InputIt>>>
+	template<
+		class InputIt,
+		class Elem_Derived = typename std::iterator_traits<InputIt>::value_type,
+		typename = std::enable_if_t<!std::is_integral_v<InputIt>>>
 	polymorphic_forward_list(InputIt first, InputIt last) :
 		root{ nullptr }
 	{
@@ -479,7 +489,9 @@ public:
 		PFL_INSERT(for (size_type i = 0; i < count; i++), value);
 	}
 
-	template<class InputIt, class Elem_Derived = typename std::iterator_traits<InputIt>::value_type>
+	template<
+		class InputIt,
+		class Elem_Derived = typename std::iterator_traits<InputIt>::value_type>
 	auto insert_after(const_iterator pos, InputIt first, InputIt last)
 		-> std::enable_if_t<!std::is_integral_v<InputIt>, iterator>
 	{
@@ -639,7 +651,8 @@ public:
 	void splice_after(
 		const_iterator pos,
 		const_iterator first,
-		const_iterator last) noexcept
+		const_iterator last)
+		noexcept
 	{
 		PFL_SPLICE(pos.p, first.p->next, last.p, pos.p->next != last.p);
 	}
@@ -709,7 +722,9 @@ private:
 template<class T>
 PFL_NODISCARD auto operator==(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() == *rhs.begin())) -> bool
+	polymorphic_forward_list<T> const & rhs)
+	noexcept(noexcept(*lhs.begin() == *rhs.begin()))
+	-> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -730,7 +745,9 @@ PFL_NODISCARD auto operator==(
 template<class T>
 PFL_NODISCARD auto operator!=(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() == *rhs.begin())) -> bool
+	polymorphic_forward_list<T> const & rhs)
+	noexcept(noexcept(*lhs.begin() == *rhs.begin()))
+	-> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -751,7 +768,11 @@ PFL_NODISCARD auto operator!=(
 template<class T>
 PFL_NODISCARD auto operator<(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() < *rhs.begin()) && noexcept(*rhs.begin() < *lhs.begin())) -> bool
+	polymorphic_forward_list<T> const & rhs)
+	noexcept(
+		noexcept(*lhs.begin() < *rhs.begin()) &&
+		noexcept(*rhs.begin() < *lhs.begin()))
+	-> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -773,7 +794,11 @@ PFL_NODISCARD auto operator<(
 template<class T>
 PFL_NODISCARD auto operator>=(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() < *rhs.begin()) && noexcept(*rhs.begin() < *lhs.begin())) -> bool
+	polymorphic_forward_list<T> const & rhs)
+	noexcept(
+		noexcept(*lhs.begin() < *rhs.begin()) &&
+		noexcept(*rhs.begin() < *lhs.begin()))
+	-> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -795,7 +820,11 @@ PFL_NODISCARD auto operator>=(
 template<class T>
 PFL_NODISCARD auto operator>(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() < *rhs.begin()) && noexcept(*rhs.begin() < *lhs.begin())) -> bool
+	polymorphic_forward_list<T> const & rhs)
+	noexcept(
+		noexcept(*lhs.begin() < *rhs.begin()) &&
+		noexcept(*rhs.begin() < *lhs.begin()))
+	-> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
@@ -817,7 +846,11 @@ PFL_NODISCARD auto operator>(
 template<class T>
 PFL_NODISCARD auto operator<=(
 	polymorphic_forward_list<T> const & lhs,
-	polymorphic_forward_list<T> const & rhs) noexcept(noexcept(*lhs.begin() < *rhs.begin()) && noexcept(*rhs.begin() < *lhs.begin())) -> bool
+	polymorphic_forward_list<T> const & rhs)
+	noexcept(
+		noexcept(*lhs.begin() < *rhs.begin()) &&
+		noexcept(*rhs.begin() < *lhs.begin()))
+	-> bool
 {
 	auto left = lhs.begin();
 	auto right = rhs.begin();
