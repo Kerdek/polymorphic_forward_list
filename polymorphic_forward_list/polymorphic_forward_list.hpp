@@ -548,7 +548,7 @@ public:
 	{
 		basic_node * const new_node =
 			new node<Elem_Derived>(root, std::forward<Args>(args) ...);
-		return new_node->ref;
+		return static_cast<Elem_Derived &>(new_node()->ref);
 	}
 
 	void pop_front()
