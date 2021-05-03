@@ -9,6 +9,7 @@
 #define POLYMORPHIC_FORWARD_LIST_HPP
 
 #include <iterator>
+#include <limits>
 
 #if __has_cpp_attribute(nodiscard)
 #define PFL_NODISCARD [[nodiscard]]
@@ -111,10 +112,10 @@ public:
 		friend class polymorphic_forward_list;
 
 	public:
-		using value_type = value_type;
-		using difference_type = difference_type;
-		using pointer = pointer;
-		using reference = reference;
+		using value_type = polymorphic_forward_list::value_type;
+		using difference_type = polymorphic_forward_list::difference_type;
+		using pointer = polymorphic_forward_list::pointer;
+		using reference = polymorphic_forward_list::reference;
 		using iterator_category = std::forward_iterator_tag;
 
 		iterator() noexcept = default;
@@ -167,10 +168,10 @@ public:
 		friend class polymorphic_forward_list;
 
 	public:
-		using difference_type = void;
-		using value_type = value_type;
-		using pointer = const_pointer;
-		using reference = const_reference;
+		using value_type = polymorphic_forward_list::value_type;
+		using difference_type = polymorphic_forward_list::difference_type;
+		using pointer = polymorphic_forward_list::const_pointer;
+		using reference = polymorphic_forward_list::const_reference;
 		using iterator_category = std::forward_iterator_tag;
 
 		const_iterator(iterator const & other) :
