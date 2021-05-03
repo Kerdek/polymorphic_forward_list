@@ -544,7 +544,7 @@ public:
 	}
 
 	template<class Elem_Derived = Elem_Base, class ... Args>
-	auto emplace_front(Args && ... args) -> reference
+	auto emplace_front(Args && ... args) -> Elem_Derived &
 	{
 		basic_node * const new_node =
 			new node<Elem_Derived>(root, std::forward<Args>(args) ...);
