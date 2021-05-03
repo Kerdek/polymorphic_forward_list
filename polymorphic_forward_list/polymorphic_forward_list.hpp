@@ -607,14 +607,14 @@ public:
 
 	template<class Compare>
 	void merge(polymorphic_forward_list & other, Compare comp)
-		noexcept(noexcept(comp(other.root.next->ref, root.next->ref)))
+		noexcept(noexcept(comp(other.root.next->ref, this->root.next->ref)))
 	{
 		PFL_MERGE(comp(other.root.next->ref, pivot->next->ref));
 	}
 
 	template<class Compare>
 	void merge(polymorphic_forward_list && other, Compare comp)
-		noexcept(noexcept(comp(other.root.next->ref, root.next->ref)))
+		noexcept(noexcept(comp(other.root.next->ref, this->root.next->ref)))
 	{
 		PFL_MERGE(comp(other.root.next->ref, pivot->next->ref));
 	}
